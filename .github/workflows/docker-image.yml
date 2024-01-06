@@ -6,7 +6,6 @@ on:
   workflow_dispatch:
 
 env:
-  NODE_VERSION: 16.19.1
   DOCKER_REGISTRY: ghcr.io
   IMAGE_NAME: ayaka-notes/overleaf
   IMAGE_TAG: latest
