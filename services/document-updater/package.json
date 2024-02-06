@@ -14,15 +14,18 @@
     "lint": "eslint --max-warnings 0 --format unix .",
     "format": "prettier --list-different $PWD/'**/*.js'",
     "format:fix": "prettier --write $PWD/'**/*.js'",
-    "lint:fix": "eslint --fix ."
+    "lint:fix": "eslint --fix .",
+    "types:check": "tsc --noEmit"
   },
   "dependencies": {
     "@overleaf/logger": "*",
     "@overleaf/metrics": "*",
     "@overleaf/o-error": "*",
+    "@overleaf/promise-utils": "*",
     "@overleaf/ranges-tracker": "*",
     "@overleaf/redis-wrapper": "*",
     "@overleaf/settings": "*",
+    "@types/chai-as-promised": "^7.1.8",
     "async": "^3.2.2",
     "body-parser": "^1.19.0",
     "bunyan": "^1.8.15",
@@ -42,6 +45,7 @@
     "sandboxed-module": "^2.0.4",
     "sinon": "^9.2.4",
     "sinon-chai": "^3.7.0",
-    "timekeeper": "^2.0.0"
+    "timekeeper": "^2.0.0",
+    "typescript": "^5.0.4"
   }
 }

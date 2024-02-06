@@ -1,3 +1,5 @@
+const { promisify } = require('util')
+const { promisifyMultiResult } = require('@overleaf/promise-utils')
 const Settings = require('@overleaf/settings')
 const Errors = require('./Errors')
 const Metrics = require('./Metrics')
@@ -174,4 +176,17 @@ function setDoc(
   )
 }
 
-module.exports = { getDoc, setDoc }
+module.exports = {
+  getDoc,
+  setDoc,
+  promises: {
+    getDoc: promisifyMultiResult(getDoc, [
+      'lines',
+      'version',
+      'ranges',
+      'pathname',
+      'projectHistoryId',
+    ]),
+    setDoc: promisify(setDoc),
+  },
+}

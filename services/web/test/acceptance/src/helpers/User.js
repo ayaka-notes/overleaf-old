@@ -156,10 +156,11 @@ class User {
           }
           if (response.statusCode !== 200) {
             return callback(
-              new Error(
+              new OError(
                 `login failed: status=${
                   response.statusCode
-                } body=${JSON.stringify(body)}`
+                } body=${JSON.stringify(body)}`,
+                { response, body }
               )
             )
           }
@@ -227,14 +228,6 @@ class User {
 
   setEmails(emails, callback) {
     UserModel.updateOne({ _id: this.id }, { emails }, callback)
-  }
-
-  setEnrollment(enrollment, callback) {
-    UserModel.updateOne({ _id: this.id }, { enrollment }, callback)
-  }
-
-  setSamlIdentifiers(samlIdentifiers, callback) {
-    UserModel.updateOne({ _id: this.id }, { samlIdentifiers }, callback)
   }
 
   logout(callback) {

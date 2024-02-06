@@ -1,25 +1,36 @@
+// @ts-check
 'use strict'
 
 const assert = require('check-types').assert
 
 const FileData = require('./')
+const CommentList = require('./comment_list')
 
 /**
  * @typedef {import("../types").StringFileRawData} StringFileRawData
+ * @typedef {import("../operation/edit_operation")} EditOperation
+ * @typedef {import("../types").BlobStore} BlobStore
+ * @typedef {import("../types").CommentRawData} CommentRawData
  */
 
 class StringFileData extends FileData {
   /**
    * @param {string} content
+   * @param {CommentRawData[]} [rawComments]
    */
-  constructor(content) {
+  constructor(content, rawComments = []) {
     super()
     assert.string(content)
     this.content = content
+    this.comments = CommentList.fromRaw(rawComments)
   }
 
+  /**
+   * @param {StringFileRawData} raw
+   * @returns {StringFileData}
+   */
   static fromRaw(raw) {
-    return new StringFileData(raw.content)
+    return new StringFileData(raw.content, raw.comments || [])
   }
 
   /**
@@ -27,7 +38,14 @@ class StringFileData extends FileData {
    * @returns {StringFileRawData}
    */
   toRaw() {
-    return { content: this.content }
+    const raw = { content: this.content }
+
+    const comments = this.getComments()
+    if (comments.length) {
+      raw.comments = comments
+    }
+
+    return raw
   }
 
   /** @inheritdoc */
@@ -50,12 +68,22 @@ class StringFileData extends FileData {
     return this.content.length
   }
 
-  /** @inheritdoc */
-  edit(textOperation) {
-    this.content = textOperation.apply(this.content)
+  /**
+   * @inheritdoc
+   * @param {EditOperation} operation */
+  edit(operation) {
+    operation.apply(this)
   }
 
   /** @inheritdoc */
+  getComments() {
+    return this.comments.getComments()
+  }
+
+  /**
+   * @inheritdoc
+   * @returns {Promise<StringFileData>}
+   */
   async toEager() {
     return this
   }
@@ -65,7 +93,10 @@ class StringFileData extends FileData {
     return FileData.createHollow(this.getByteLength(), this.getStringLength())
   }
 
-  /** @inheritdoc */
+  /**
+   * @inheritdoc
+   * @param {BlobStore} blobStore
+   */
   async store(blobStore) {
     const blob = await blobStore.putString(this.content)
     return { hash: blob.getHash() }

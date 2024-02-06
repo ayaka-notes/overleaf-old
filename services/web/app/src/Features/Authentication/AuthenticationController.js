@@ -201,6 +201,7 @@ const AuthenticationController = {
             return done(null, null, {
               text: req.i18n.translate('to_many_login_requests_2_mins'),
               type: 'error',
+              key: 'to-many-login-requests-2-mins',
               status: 429,
             })
           }
@@ -236,8 +237,8 @@ const AuthenticationController = {
                 AuthenticationController._recordFailedLogin()
                 logger.debug({ email }, 'failed log in')
                 done(null, false, {
-                  text: req.i18n.translate('email_or_password_wrong_try_again'),
                   type: 'error',
+                  key: 'invalid-password-retry-or-reset',
                   status: 401,
                 })
               }
@@ -306,19 +307,26 @@ const AuthenticationController = {
     return doRequest
   },
 
-  requireOauth() {
+  /**
+   * @param {string} scope
+   * @return {import('express').Handler}
+   */
+  requireOauth(scope) {
+    if (typeof scope !== 'string' || !scope) {
+      throw new Error(
+        "requireOauth() expects a non-empty string as 'scope' parameter"
+      )
+    }
+
     // require this here because module may not be included in some versions
     const Oauth2Server = require('../../../../modules/oauth2-server/app/src/Oauth2Server')
     return function (req, res, next) {
-      if (next == null) {
-        next = function () {}
-      }
       const request = new Oauth2Server.Request(req)
       const response = new Oauth2Server.Response(res)
-      return Oauth2Server.server.authenticate(
+      Oauth2Server.server.authenticate(
         request,
         response,
-        {},
+        { scope },
         function (err, token) {
           if (err) {
             // use a 401 status code for malformed header for git-bridge
@@ -329,14 +337,15 @@ const AuthenticationController = {
               err.code = 401
             }
             // send all other errors
-            return res
+            res
               .status(err.code)
               .json({ error: err.name, error_description: err.message })
+          } else {
+            req.oauth = { access_token: token.accessToken }
+            req.oauth_token = token
+            req.oauth_user = token.user
+            next()
           }
-          req.oauth = { access_token: token.accessToken }
-          req.oauth_token = token
-          req.oauth_user = token.user
-          return next()
         }
       )
     }

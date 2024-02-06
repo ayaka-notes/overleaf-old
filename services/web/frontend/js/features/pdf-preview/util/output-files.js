@@ -155,6 +155,7 @@ export function buildLogEntryAnnotations(entries, fileTreeData, rootDocId) {
           type: entry.level === 'error' ? 'error' : 'warning',
           text: entry.message,
           source: 'compile', // NOTE: this is used in Ace for filtering the annotations
+          ruleId: entry.ruleId,
         })
       }
     }
@@ -162,6 +163,13 @@ export function buildLogEntryAnnotations(entries, fileTreeData, rootDocId) {
 
   return logEntryAnnotations
 }
+
+export const countRules = (entries = []) =>
+  entries.reduce((counts, entry) => {
+    const { ruleId } = entry
+    counts[ruleId] = counts[ruleId] ? counts[ruleId] + 1 : 1
+    return counts
+  }, {})
 
 function buildURL(file, pdfDownloadDomain) {
   if (file.build && pdfDownloadDomain) {

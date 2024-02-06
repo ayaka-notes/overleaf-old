@@ -91,6 +91,10 @@ const defaultTextExtensions = [
   'lhs',
   'mk',
   'xmpdata',
+  'cfg',
+  'rnw',
+  'ltx',
+  'inc',
 ]
 
 const parseTextExtensions = function (extensions) {
@@ -393,6 +397,7 @@ module.exports = {
 
   enableSubscriptions: false,
   restrictedCountries: [],
+  enableOnboardingEmails: process.env.ENABLE_ONBOARDING_EMAILS === 'true',
 
   enabledLinkedFileTypes: (process.env.ENABLED_LINKED_FILE_TYPES || '').split(
     ','
@@ -858,6 +863,7 @@ module.exports = {
     sourceEditorComponents: [],
     sourceEditorCompletionSources: [],
     sourceEditorSymbolPalette: [],
+    sourceEditorToolbarComponents: [],
     writefullEditorPromotion: [],
     langFeedbackLinkingWidgets: [],
     integrationLinkingWidgets: [],

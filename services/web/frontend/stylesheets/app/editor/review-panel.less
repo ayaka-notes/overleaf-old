@@ -469,6 +469,10 @@
   font-size: @rp-small-font-size;
 }
 
+.rp-entry-metadata-element {
+  display: inline-block;
+}
+
 .rp-entry-user {
   font-weight: @rp-semibold-weight;
   font-style: normal;
@@ -893,6 +897,7 @@ button when (@is-overleaf-light = true) {
 }
 
 .resolved-comments-toggle {
+  background-color: @gray-lightest;
   font-size: 14px;
   color: lighten(@rp-type-blue, 25%);
   border: solid 1px @rp-border-grey;

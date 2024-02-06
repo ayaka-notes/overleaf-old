@@ -28,6 +28,10 @@ declare global {
           logEntryAnnotations: Record<string, unknown>
         }
       }
+      socket: {
+        on: (event: string, listener: any) => void
+        removeListener: (event: string, listener: any) => void
+      }
     }
     isRestrictedTokenMember: boolean
     _reportCM6Perf: () => void
@@ -42,8 +46,12 @@ declare global {
       enterprise?: boolean
       useRecaptchaNet?: boolean
     }
+    brandVariation?: Record<string, any>
+    data?: Record<string, any>
     expectingLinkedFileRefreshedSocketFor?: string | null
-    writefull?: any
+    writefull?: {
+      type: 'extension' | 'integration'
+    }
     io?: any
     overleaf: {
       unstable: {

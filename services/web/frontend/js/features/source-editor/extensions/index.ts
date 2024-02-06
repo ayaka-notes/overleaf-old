@@ -29,7 +29,6 @@ import { filterCharacters } from './filter-characters'
 import { keybindings } from './keybindings'
 import { bracketMatching, bracketSelection } from './bracket-matching'
 import { verticalOverflow } from './vertical-overflow'
-import { exceptionLogger } from './exception-logger'
 import { thirdPartyExtensions } from './third-party-extensions'
 import { lineNumbers } from './line-numbers'
 import { highlightActiveLine } from './highlight-active-line'
@@ -47,6 +46,7 @@ import { effectListeners } from './effect-listeners'
 import { highlightSpecialChars } from './highlight-special-chars'
 import { toolbarPanel } from './toolbar/toolbar-panel'
 import { geometryChangeEvent } from './geometry-change-event'
+import { docName } from '@/features/source-editor/extensions/doc-name'
 
 const moduleExtensions: Array<() => Extension> = importOverleafModules(
   'sourceEditorExtensions'
@@ -101,9 +101,11 @@ export const createExtensions = (options: Record<string, any>): Extension[] => [
   // precedence over language-specific keyboard shortcuts
   keybindings(),
 
+  docName(options.docName),
+
   // NOTE: `annotations` needs to be before `language`
   annotations(),
-  language(options.currentDoc, options.metadata, options.settings),
+  language(options.docName, options.metadata, options.settings),
   indentUnit.of('    '), // 4 spaces
   theme(options.theme),
   realtime(options.currentDoc, options.handleError),
@@ -121,7 +123,7 @@ export const createExtensions = (options: Record<string, any>): Extension[] => [
   // so the decorations are added in the correct order.
   emptyLineFiller(),
   trackChanges(options.currentDoc, options.changeManager),
-  visual(options.currentDoc, options.visual),
+  visual(options.visual),
   toolbarPanel(),
   verticalOverflow(),
   highlightActiveLine(options.visual.visual),
@@ -129,7 +131,8 @@ export const createExtensions = (options: Record<string, any>): Extension[] => [
   highlightActiveLineGutter(),
   inlineBackground(options.visual.visual),
   codemirrorDevTools(),
-  exceptionLogger(),
+  // Send exceptions to Sentry
+  EditorView.exceptionSink.of(options.handleException),
   // CodeMirror extensions provided by modules
   moduleExtensions.map(extension => extension()),
   thirdPartyExtensions(),

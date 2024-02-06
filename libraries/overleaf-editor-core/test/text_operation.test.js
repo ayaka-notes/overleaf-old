@@ -1,3 +1,4 @@
+// @ts-check
 //
 // These tests are based on the OT.js tests:
 // https://github.com/Operational-Transformation/ot.js/blob/
@@ -7,31 +8,12 @@
 
 const { expect } = require('chai')
 const random = require('./support/random')
+const randomOperation = require('./support/random_text_operation')
 
 const ot = require('..')
 const TextOperation = ot.TextOperation
-
-function randomOperation(str) {
-  const operation = new TextOperation()
-  let left
-  while (true) {
-    left = str.length - operation.baseLength
-    if (left === 0) break
-    const r = Math.random()
-    const l = 1 + random.int(Math.min(left - 1, 20))
-    if (r < 0.2) {
-      operation.insert(random.string(l))
-    } else if (r < 0.4) {
-      operation.remove(l)
-    } else {
-      operation.retain(l)
-    }
-  }
-  if (Math.random() < 0.3) {
-    operation.insert(1 + random.string(10))
-  }
-  return operation
-}
+const StringFileData = require('../lib/file_data/string_file_data')
+const { RetainOp, InsertOp, RemoveOp } = require('../lib/operation/scan_op')
 
 describe('TextOperation', function () {
   const numTrials = 500
@@ -92,22 +74,22 @@ describe('TextOperation', function () {
     expect(o.ops.length).to.equal(0)
     o.retain(2)
     expect(o.ops.length).to.equal(1)
-    expect(last(o.ops)).to.equal(2)
+    expect(last(o.ops).equals(new RetainOp(2))).to.be.true
     o.retain(3)
     expect(o.ops.length).to.equal(1)
-    expect(last(o.ops)).to.equal(5)
+    expect(last(o.ops).equals(new RetainOp(5))).to.be.true
     o.insert('abc')
     expect(o.ops.length).to.equal(2)
-    expect(last(o.ops)).to.equal('abc')
+    expect(last(o.ops).equals(new InsertOp('abc'))).to.be.true
     o.insert('xyz')
     expect(o.ops.length).to.equal(2)
-    expect(last(o.ops)).to.equal('abcxyz')
+    expect(last(o.ops).equals(new InsertOp('abcxyz'))).to.be.true
     o.remove('d')
     expect(o.ops.length).to.equal(3)
-    expect(last(o.ops)).to.equal(-1)
+    expect(last(o.ops).equals(new RemoveOp(1))).to.be.true
     o.remove('d')
     expect(o.ops.length).to.equal(3)
-    expect(last(o.ops)).to.equal(-2)
+    expect(last(o.ops).equals(new RemoveOp(2))).to.be.true
   })
 
   it('checks for no-ops', function () {
@@ -134,7 +116,7 @@ describe('TextOperation', function () {
 
   it('converts from JSON', function () {
     const ops = [2, -1, -1, 'cde']
-    const o = TextOperation.fromJSON(ops)
+    const o = TextOperation.fromJSON({ textOperation: ops })
     expect(o.ops.length).to.equal(3)
     expect(o.baseLength).to.equal(4)
     expect(o.targetLength).to.equal(5)
@@ -143,7 +125,7 @@ describe('TextOperation', function () {
       const ops2 = ops.slice(0)
       fn(ops2)
       expect(() => {
-        TextOperation.fromJSON(ops2)
+        TextOperation.fromJSON({ textOperation: ops2 })
       }).to.throw
     }
 
@@ -161,7 +143,10 @@ describe('TextOperation', function () {
       const str = random.string(50)
       const o = randomOperation(str)
       expect(str.length).to.equal(o.baseLength)
-      expect(o.apply(str).length).to.equal(o.targetLength)
+      const file = new StringFileData(str)
+      o.apply(file)
+      const result = file.getContent()
+      expect(result.length).to.equal(o.targetLength)
     })
   )
 
@@ -170,10 +155,14 @@ describe('TextOperation', function () {
     random.test(numTrials, () => {
       const str = random.string(50)
       const o = randomOperation(str)
-      const p = o.invert(str)
+      const p = o.invert(new StringFileData(str))
       expect(o.baseLength).to.equal(p.targetLength)
       expect(o.targetLength).to.equal(p.baseLength)
-      expect(p.apply(o.apply(str))).to.equal(str)
+      const file = new StringFileData(str)
+      o.apply(file)
+      p.apply(file)
+      const result = file.getContent()
+      expect(result).to.equal(str)
     })
   )
 
@@ -193,14 +182,18 @@ describe('TextOperation', function () {
       // invariant: apply(str, compose(a, b)) === apply(apply(str, a), b)
       const str = random.string(20)
       const a = randomOperation(str)
-      const afterA = a.apply(str)
+      const file = new StringFileData(str)
+      a.apply(file)
+      const afterA = file.getContent()
       expect(afterA.length).to.equal(a.targetLength)
       const b = randomOperation(afterA)
-      const afterB = b.apply(afterA)
+      b.apply(file)
+      const afterB = file.getContent()
       expect(afterB.length).to.equal(b.targetLength)
       const ab = a.compose(b)
       expect(ab.targetLength).to.equal(b.targetLength)
-      const afterAB = ab.apply(str)
+      ab.apply(new StringFileData(str))
+      const afterAB = file.getContent()
       expect(afterAB).to.equal(afterB)
     })
   )
@@ -218,20 +211,22 @@ describe('TextOperation', function () {
       const bPrime = primes[1]
       const abPrime = a.compose(bPrime)
       const baPrime = b.compose(aPrime)
-      const afterAbPrime = abPrime.apply(str)
-      const afterBaPrime = baPrime.apply(str)
+      const abFile = new StringFileData(str)
+      const baFile = new StringFileData(str)
+      abPrime.apply(abFile)
+      baPrime.apply(baFile)
       expect(abPrime.equals(baPrime)).to.be.true
-      expect(afterAbPrime).to.equal(afterBaPrime)
+      expect(abFile.getContent()).to.equal(baFile.getContent())
     })
   )
 
   it('throws when invalid operations are applied', function () {
     const operation = new TextOperation().retain(1)
     expect(() => {
-      operation.apply('')
+      operation.apply(new StringFileData(''))
     }).to.throw(TextOperation.ApplyError)
     expect(() => {
-      operation.apply(' ')
+      operation.apply(new StringFileData(' '))
     }).not.to.throw
   })
 
@@ -250,7 +245,7 @@ describe('TextOperation', function () {
     const operation = new TextOperation()
     const str = '𝌆\n'
     expect(() => {
-      operation.apply(str)
+      operation.apply(new StringFileData(str))
     }).to.throw(
       TextOperation.UnprocessableError,
       /string contains non BMP characters/
@@ -260,7 +255,7 @@ describe('TextOperation', function () {
   it('throws at from JSON when it contains non BMP chars', function () {
     const operation = ['𝌆\n']
     expect(() => {
-      TextOperation.fromJSON(operation)
+      TextOperation.fromJSON({ textOperation: operation })
     }).to.throw(
       TextOperation.UnprocessableError,
       /inserted text contains non BMP characters/

@@ -1,9 +1,9 @@
-let RedisManager
 const Settings = require('@overleaf/settings')
 const rclient = require('@overleaf/redis-wrapper').createClient(
   Settings.redis.documentupdater
 )
 const logger = require('@overleaf/logger')
+const { promisifyAll } = require('@overleaf/promise-utils')
 const metrics = require('./Metrics')
 const Errors = require('./Errors')
 const crypto = require('crypto')
@@ -27,7 +27,7 @@ const MAX_RANGES_SIZE = 3 * MEGABYTES
 
 const keys = Settings.redis.documentupdater.key_schema
 
-module.exports = RedisManager = {
+const RedisManager = {
   rclient,
 
   putDocInMemory(
@@ -617,3 +617,25 @@ module.exports = RedisManager = {
     return crypto.createHash('sha1').update(docLines, 'utf8').digest('hex')
   },
 }
+
+module.exports = RedisManager
+module.exports.promises = promisifyAll(RedisManager, {
+  without: ['_deserializeRanges', '_computeHash'],
+  multiResult: {
+    getDoc: [
+      'lines',
+      'version',
+      'ranges',
+      'pathname',
+      'projectHistoryId',
+      'unflushedTime',
+      'lastUpdatedAt',
+      'lastUpdatedBy',
+    ],
+    getNextProjectToFlushAndDelete: [
+      'projectId',
+      'flushTimestamp',
+      'queueLength',
+    ],
+  },
+})

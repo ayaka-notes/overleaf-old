@@ -13,6 +13,9 @@ const AUTO_COMPILE_MAX_WAIT = 5000
 // and then again on ack.
 const AUTO_COMPILE_DEBOUNCE = 2500
 
+// If there is a pending op, wait for it to be saved before compiling
+const PENDING_OP_MAX_WAIT = 10000
+
 const searchParams = new URLSearchParams(window.location.search)
 
 export default class DocumentCompiler {
@@ -20,7 +23,6 @@ export default class DocumentCompiler {
     compilingRef,
     projectId,
     setChangedAt,
-    setSavedAt,
     setCompiling,
     setData,
     setFirstRenderDone,
@@ -32,7 +34,6 @@ export default class DocumentCompiler {
     this.compilingRef = compilingRef
     this.projectId = projectId
     this.setChangedAt = setChangedAt
-    this.setSavedAt = setSavedAt
     this.setCompiling = setCompiling
     this.setData = setData
     this.setFirstRenderDone = setFirstRenderDone
@@ -60,6 +61,40 @@ export default class DocumentCompiler {
         maxWait: AUTO_COMPILE_MAX_WAIT,
       }
     )
+
+    this._onDocSavedCallback = null
+  }
+
+  async _awaitBufferedOps() {
+    const removeEventListener = () => {
+      clearTimeout(this.pendingOpTimeout)
+      if (this._onDocSavedCallback) {
+        window.removeEventListener('doc:saved', this._onDocSavedCallback)
+        this._onDocSavedCallback = null
+      }
+    }
+
+    removeEventListener()
+    return new Promise(resolve => {
+      if (!this.currentDoc?.hasBufferedOps?.()) {
+        return resolve()
+      }
+
+      this._onDocSavedCallback = () => {
+        // TODO: it's possible that there's more than one doc open with buffered ops, and ideally we'd wait for all docs to be flushed
+        removeEventListener()
+        resolve()
+      }
+
+      clearTimeout(this.pendingOpTimeout)
+      this.pendingOpTimeout = setTimeout(() => {
+        removeEventListener()
+        resolve()
+      }, PENDING_OP_MAX_WAIT)
+
+      window.addEventListener('doc:saved', this._onDocSavedCallback)
+      window.dispatchEvent(new CustomEvent('flush-changes'))
+    })
   }
 
   // The main "compile" function.
@@ -83,12 +118,11 @@ export default class DocumentCompiler {
     }
 
     try {
+      await this._awaitBufferedOps()
+
       // reset values
       this.setChangedAt(0) // TODO: wait for doc:saved?
-      this.setSavedAt(0)
       this.validationIssues = undefined
-
-      window.dispatchEvent(new CustomEvent('flush-changes')) // TODO: wait for this?
 
       const params = this.buildCompileParams(options)
 

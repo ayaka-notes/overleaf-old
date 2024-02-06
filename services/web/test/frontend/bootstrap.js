@@ -64,6 +64,10 @@ window.ExposedSettings = {
     'lhs',
     'mk',
     'xmpdata',
+    'cfg',
+    'rnw',
+    'ltx',
+    'inc',
   ],
   editableFilenames: ['latexmkrc', '.latexmkrc', 'makefile', 'gnumakefile'],
 }
@@ -130,3 +134,7 @@ globalThis.fetch =
 // ignore CSS files
 const { addHook } = require('pirates')
 addHook(() => '', { exts: ['.css'], ignoreNodeModules: false })
+
+globalThis.HTMLElement.prototype.scrollIntoView = () => {}
+
+globalThis.DOMParser = window.DOMParser

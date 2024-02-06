@@ -452,12 +452,12 @@ describe('AuthenticationController', function () {
       it('should not establish the login', function () {
         this.cb.callCount.should.equal(1)
         this.cb.calledWith(null, false)
-        // @res.body.should.exist
-        expect(this.cb.lastCall.args[2]).to.contain.all.keys(['text', 'type'])
+        expect(this.cb.lastCall.args[2]).to.deep.equal({
+          type: 'error',
+          key: 'invalid-password-retry-or-reset',
+          status: 401,
+        })
       })
-      // message:
-      // 	text: 'Your email or password were incorrect. Please try again',
-      // 	type: 'error'
 
       it('should not setup the user data in the background', function () {
         this.UserHandler.setupLoginData.called.should.equal(false)
@@ -574,7 +574,7 @@ describe('AuthenticationController', function () {
       this.res.json = sinon.stub()
       this.res.status = sinon.stub().returns(this.res)
       this.res.sendStatus = sinon.stub()
-      this.middleware = this.AuthenticationController.requireOauth()
+      this.middleware = this.AuthenticationController.requireOauth('scope')
     })
 
     describe('when Oauth2Server authenticates', function () {

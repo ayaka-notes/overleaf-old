@@ -21,7 +21,11 @@ import {
 } from '../extensions/annotations'
 import { useDetachCompileContext as useCompileContext } from '../../../shared/context/detach-compile-context'
 import { setCursorHighlights } from '../extensions/cursor-highlights'
-import { setMetadata, setSyntaxValidation } from '../extensions/language'
+import {
+  setLanguage,
+  setMetadata,
+  setSyntaxValidation,
+} from '../extensions/language'
 import { useIdeContext } from '../../../shared/context/ide-context'
 import { restoreScrollPosition } from '../extensions/scroll-position'
 import { setEditable } from '../extensions/editable'
@@ -48,6 +52,10 @@ import { useErrorHandler } from 'react-error-boundary'
 import { setVisual } from '../extensions/visual/visual'
 import { useFileTreePathContext } from '@/features/file-tree/contexts/file-tree-path'
 import { useUserSettingsContext } from '@/shared/context/user-settings-context'
+import { setDocName } from '@/features/source-editor/extensions/doc-name'
+import isValidTexFile from '@/main/is-valid-tex-file'
+import { captureException } from '@/infrastructure/error-reporter'
+import grammarlyExtensionPresent from '@/shared/utils/grammarly'
 
 function useCodeMirrorScope(view: EditorView) {
   const ide = useIdeContext()
@@ -139,7 +147,6 @@ function useCodeMirrorScope(view: EditorView) {
 
   const currentDocRef = useRef({
     currentDoc,
-    docName,
     trackChanges,
     loadingThreads,
   })
@@ -150,11 +157,7 @@ function useCodeMirrorScope(view: EditorView) {
     }
   }, [view, currentDoc])
 
-  useEffect(() => {
-    if (docName) {
-      currentDocRef.current.docName = docName
-    }
-  }, [view, docName])
+  const docNameRef = useRef(docName)
 
   useEffect(() => {
     currentDocRef.current.loadingThreads = loadingThreads
@@ -240,12 +243,30 @@ function useCodeMirrorScope(view: EditorView) {
 
   const { previewByPath } = useFileTreePathContext()
 
+  const showVisual = visual && isValidTexFile(docName)
+
   const visualRef = useRef({
     previewByPath,
-    visual,
+    visual: showVisual,
   })
 
   const handleError = useErrorHandler()
+
+  const handleException = useCallback((exception: any) => {
+    captureException(exception, {
+      tags: {
+        handler: 'cm6-exception',
+        // which editor mode is active ('visual' | 'code')
+        ol_editor_mode: visualRef.current.visual ? 'visual' : 'code',
+        // which editor keybindings are active ('default' | 'vim' | 'emacs')
+        ol_editor_keybindings: settingsRef.current.mode,
+        // whether Writefull is present ('extension' | 'integration')
+        ol_extensions_writefull: window.writefull?.type,
+        // whether Grammarly is present
+        ol_extensions_grammarly: grammarlyExtensionPresent(),
+      },
+    })
+  }, [])
 
   // create a new state when currentDoc changes
 
@@ -258,6 +279,7 @@ function useCodeMirrorScope(view: EditorView) {
             ...currentDocRef.current,
             currentDoc,
           },
+          docName: docNameRef.current,
           theme: themeRef.current,
           metadata: metadataRef.current,
           settings: settingsRef.current,
@@ -266,6 +288,7 @@ function useCodeMirrorScope(view: EditorView) {
           visual: visualRef.current,
           changeManager: createChangeManager(view, currentDoc),
           handleError,
+          handleException,
         }),
       })
       view.setState(state)
@@ -295,17 +318,32 @@ function useCodeMirrorScope(view: EditorView) {
     }
     // IMPORTANT: This effect must not depend on anything variable apart from currentDoc,
     // as the editor state is recreated when the effect runs.
-  }, [view, currentDoc, handleError])
+  }, [view, currentDoc, handleError, handleException])
 
   useEffect(() => {
-    visualRef.current.visual = visual
+    if (docName) {
+      docNameRef.current = docName
+
+      view.dispatch(
+        setDocName(docNameRef.current),
+        setLanguage(
+          docNameRef.current,
+          metadataRef.current,
+          settingsRef.current.syntaxValidation
+        )
+      )
+    }
+  }, [view, docName])
+
+  useEffect(() => {
+    visualRef.current.visual = showVisual
     view.dispatch(setVisual(visualRef.current))
     view.dispatch({
       effects: EditorView.scrollIntoView(view.state.selection.main.head),
     })
     // clear performance measures and marks when switching between Source and Rich Text
     window.dispatchEvent(new Event('editor:visual-switch'))
-  }, [view, visual])
+  }, [view, showVisual])
 
   useEffect(() => {
     visualRef.current.previewByPath = previewByPath

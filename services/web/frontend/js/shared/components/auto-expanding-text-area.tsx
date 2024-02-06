@@ -6,6 +6,7 @@ type AutoExpandingTextAreaProps = MergeAndOverride<
   React.ComponentProps<'textarea'>,
   {
     onResize?: () => void
+    onAutoFocus?: (textarea: HTMLTextAreaElement) => void
   }
 >
 
@@ -13,6 +14,7 @@ function AutoExpandingTextArea({
   onChange,
   onResize,
   autoFocus,
+  onAutoFocus,
   ...rest
 }: AutoExpandingTextAreaProps) {
   const ref = useRef<HTMLTextAreaElement>(null)
@@ -74,12 +76,14 @@ function AutoExpandingTextArea({
     }
 
     const resizeObserver = new ResizeObserver(() => {
-      // Ignore the resize that is triggered when the element is first
-      // inserted into the DOM
       if (!ref.current) {
         return
       }
       const newHeight = ref.current.offsetHeight
+      // Ignore the resize when the height of the element is less than or equal to 0
+      if (newHeight <= 0) {
+        return
+      }
       const heightChanged = newHeight !== previousHeightRef.current
       previousHeightRef.current = newHeight
       if (heightChanged) {
@@ -100,6 +104,13 @@ function AutoExpandingTextArea({
     }
   }, [onResize])
 
+  // Maintain a copy onAutoFocus in a ref for use in the autofocus effect
+  // below so that the effect doesn't run when onAutoFocus changes
+  const onAutoFocusRef = useRef(onAutoFocus)
+  useEffect(() => {
+    onAutoFocusRef.current = onAutoFocus
+  }, [onAutoFocus])
+
   // Implement autofocus manually so that the cursor is placed at the end of
   // the textarea content
   useEffect(() => {
@@ -111,10 +122,17 @@ function AutoExpandingTextArea({
     resetHeight()
     if (autoFocus) {
       const cursorPos = el.value.length
-      window.setTimeout(() => {
+      const timer = window.setTimeout(() => {
         el.focus()
         el.setSelectionRange(cursorPos, cursorPos)
+        if (onAutoFocusRef.current) {
+          onAutoFocusRef.current(el)
+        }
       }, 100)
+
+      return () => {
+        window.clearTimeout(timer)
+      }
     }
   }, [autoFocus, resetHeight])
 

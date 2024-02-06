@@ -15,6 +15,8 @@ let StringFileData = null
 
 /**
  * @typedef {import("../types").BlobStore} BlobStore
+ * @typedef {import("../operation/edit_operation")} EditOperation
+ * @typedef {import("../types").CommentRawData} CommentRawData
  */
 
 /**
@@ -61,33 +63,52 @@ class FileData {
     throw new Error('FileData: toRaw not implemented')
   }
 
-  /** @see File#getHash */
+  /**
+   * @see File#getHash
+   * @return {string | null | undefined}
+   */
+
   getHash() {
     return null
   }
 
-  /** @see File#getContent */
+  /**
+   * @see File#getContent
+   * @return {string | null | undefined}
+   */
   getContent() {
     return null
   }
 
-  /** @see File#isEditable */
+  /**
+   * @see File#isEditable
+   * @return {boolean | null | undefined} null if it is not currently known
+   */
   isEditable() {
     return null
   }
 
-  /** @see File#getByteLength */
+  /**
+   * @see File#getByteLength
+   * @return {number | null | undefined}
+   */
   getByteLength() {
     return null
   }
 
-  /** @see File#getStringLength */
+  /**
+   * @see File#getStringLength
+   * @return {number | null | undefined}
+   */
   getStringLength() {
     return null
   }
 
-  /** @see File#edit */
-  edit(textOperation) {
+  /**
+   * @see File#edit
+   * @param {EditOperation} editOperation
+   */
+  edit(editOperation) {
     throw new Error('edit not implemented for ' + JSON.stringify(this))
   }
 
@@ -146,6 +167,16 @@ class FileData {
    */
   async store(blobStore) {
     throw new Error('store not implemented for ' + JSON.stringify(this))
+  }
+
+  /**
+   * @see File#getComments
+   * @function
+   * @return {CommentRawData[]}
+   * @abstract
+   */
+  getComments() {
+    throw new Error('getComments not implemented for ' + JSON.stringify(this))
   }
 }
 
